@@ -86,8 +86,10 @@ class TestCore(unittest.TestCase):
         res2 = cached_instance.public_method3()
         self.assertEqual(original_instance.call_counter, 2)
         self.assertEqual(len(cached_instance.cache), 1)
+        self.assertEqual(cached_instance.cache.read_counter, 0)
         res3 = cached_instance.public_method3()
         self.assertEqual(len(cached_instance.cache), 1)
+        self.assertEqual(cached_instance.cache.read_counter, 1)
         self.assertEqual(original_instance.call_counter, 2)
         self.assertEqual(res1, res2)
         self.assertEqual(res1, res3)
@@ -100,8 +102,10 @@ class TestCore(unittest.TestCase):
         res2 = cached_instance.public_method1(10, 5)  # -> results in raw call
         self.assertEqual(original_instance.call_counter, cc + 2)  # new call
         self.assertEqual(len(cached_instance.cache), 2)  # increased cache
+        self.assertEqual(cached_instance.cache.read_counter, 1)
         res3 = cached_instance.public_method1(10, 5)  # -> cached call
         self.assertEqual(original_instance.call_counter, cc + 2)
+        self.assertEqual(cached_instance.cache.read_counter, 2)
         self.assertEqual(len(cached_instance.cache), 2)
 
         self.assertEqual(res1, res2)
@@ -119,8 +123,10 @@ class TestCore(unittest.TestCase):
         res2 = cached_instance.public_method1(arg1, arg2)  # -> results in raw call
         self.assertEqual(original_instance.call_counter, cc + 2)  # new call
         self.assertEqual(len(cached_instance.cache), 3)  # increased cache
+        self.assertEqual(cached_instance.cache.read_counter, 2) # no new successful read access to the cache
         res3 = cached_instance.public_method1(arg1, arg2)  # -> cached call
         self.assertEqual(original_instance.call_counter, cc + 2)  # no new call
+        self.assertEqual(cached_instance.cache.read_counter, 3) # new successful read access to the cache
         self.assertEqual(len(cached_instance.cache), 3)  # no new cache entry
 
         self.assertEqual(res1, res2)

@@ -11,6 +11,28 @@ except ImportError:
     pass
 
 
+class CountingDict(dict):
+    """
+    Dict that counts how often a successfull read-access has occurred
+    """
+    
+    def __init__(self, *args, **kwargs):
+        self.read_counter = 0
+        return super().__init__(*args, **kwargs)
+
+    
+    def __getitem__(self, __k):
+
+        res = super().__getitem__(__k)
+        self.read_counter += 1
+        return res
+    
+    def get(self, *args, **kwargs):
+        res = super().get(*args, **kwargs)
+        self.read_counter += 1
+        return res
+
+
 class CacheWrapper:
     """
     Wrapper object
@@ -21,7 +43,7 @@ class CacheWrapper:
         Create a wrapper
         """
 
-        self.cache = {}
+        self.cache = CountingDict()
 
         self.wrapped_object = obj
         self.callables = get_all_callables(obj)
