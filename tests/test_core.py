@@ -1,5 +1,6 @@
 import unittest
 import cachewrapper as cw
+import os
 
 # useful for debugging during development
 try:
@@ -65,7 +66,7 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(len(cached_instance.callables), 4)
 
-    def test_caching(self):
+    def test_caching1(self):
 
         original_instance = DummyClass()
         cached_instance = cw.CacheWrapper(original_instance)
@@ -124,3 +125,39 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(res1, res2)
         self.assertEqual(res2, res3)
+
+    def test_caching_with_save_and_load(self):
+
+        original_instance = DummyClass()
+        cached_instance = cw.CacheWrapper(original_instance)
+
+        cache_path = "cache.pcl"
+
+        arg1 = {"a": 1, "x": {1: []}}
+        arg2 = {"b": 2}
+
+        cc = original_instance.call_counter
+
+        res1 = original_instance.public_method1(arg1, arg2)  # -> raw call
+        res2 = cached_instance.public_method1(arg1, arg2)  # -> results in raw call again
+
+        self.assertEqual(original_instance.call_counter, 2)
+
+        cached_instance.save_cache(cache_path)
+        cached_instance.cache.clear()
+
+        res3 = cached_instance.public_method1(
+            arg1, arg2
+        )  # -> again in raw call (due to empty cache)
+        self.assertEqual(original_instance.call_counter, 3)
+        cached_instance.cache.clear()
+
+        cached_instance.load_cache(cache_path)
+        res4 = cached_instance.public_method1(arg1, arg2)  # -> no new call
+        self.assertEqual(original_instance.call_counter, 3)
+
+        self.assertEqual(res1, res2)
+        self.assertEqual(res1, res3)
+        self.assertEqual(res1, res4)
+
+        os.remove(cache_path)

@@ -1,9 +1,11 @@
 import inspect
 import json
+import pickle
 
 # useful for debugging during development
 try:
     from ipydex import IPS, activate_ips_on_exception
+
     activate_ips_on_exception()
 except ImportError:
     pass
@@ -34,6 +36,7 @@ class CacheWrapper:
         Create a new callable obj and install it in the namespace of `self`.
         """
 
+        # note: `name` and `obj` are specific to the follwing function-object
         def func(*args, **kwargs):
 
             # caching assumes that the arguments can be sensibly converted to json
@@ -45,12 +48,24 @@ class CacheWrapper:
                 self.cache[cache_key] = res  # store result in the cache
                 return res
 
-        func.__doc__ = f"{obj}wrapped callable '{name}':\n\n {obj.__doc__}"
+        # generate a new docstring from the old one
+        func.__doc__ = f"wrapped callable '{name}':\n\n {obj.__doc__}"
         assert getattr(self, name, None) is None
         setattr(self, name, func)
 
+    def save_cache(self, path: str):
+        with open(path, "wb") as dumpfile:
+            pickle.dump(self.cache, dumpfile)
 
-def get_all_callables(obj, include_private=None) -> dict:
+    def load_cache(self, path: str):
+        with open(path, "rb") as pfile:
+            pdict = pickle.load(pfile)
+        self.cache.update(pdict)
+
+
+def get_all_callables(
+    obj, include_private=None, exclude_names=("save_cache", "load_cache")
+) -> dict:
 
     if include_private is None:
         include_private = []
@@ -60,7 +75,9 @@ def get_all_callables(obj, include_private=None) -> dict:
     callables = dict(
         (name, obj)
         for (name, obj) in attribute_dict.items()
-        if callable(obj) and (not name.startswith("_") or name in include_private)
+        if callable(obj)
+        and (not name.startswith("_") or name in include_private)
+        and name not in exclude_names
     )
 
     return callables
