@@ -32,12 +32,13 @@ class DummyClass:
 
         return arg1 + arg2
 
-    def public_method2(self, arg1, arg2):
+    def public_method2(self, arg1):
         """
-        docstring of public_method2
+        docstring of public_method2: return an iterator
         """
         self.call_counter += 1
-        return arg1 + arg2
+        res = iter(range(arg1))
+        return res
 
     def public_method3(self, *args):
         """
@@ -123,10 +124,14 @@ class TestCore(unittest.TestCase):
         res2 = cached_instance.public_method1(arg1, arg2)  # -> results in raw call
         self.assertEqual(original_instance.call_counter, cc + 2)  # new call
         self.assertEqual(len(cached_instance.cache), 3)  # increased cache
-        self.assertEqual(cached_instance.cache.read_counter, 2) # no new successful read access to the cache
+        self.assertEqual(
+            cached_instance.cache.read_counter, 2
+        )  # no new successful read access to the cache
         res3 = cached_instance.public_method1(arg1, arg2)  # -> cached call
         self.assertEqual(original_instance.call_counter, cc + 2)  # no new call
-        self.assertEqual(cached_instance.cache.read_counter, 3) # new successful read access to the cache
+        self.assertEqual(
+            cached_instance.cache.read_counter, 3
+        )  # new successful read access to the cache
         self.assertEqual(len(cached_instance.cache), 3)  # no new cache entry
 
         self.assertEqual(res1, res2)
@@ -167,3 +172,40 @@ class TestCore(unittest.TestCase):
         self.assertEqual(res1, res4)
 
         os.remove(cache_path)
+
+    def test_caching_iterators(self):
+        original_instance = DummyClass()
+        cached_instance = cw.CacheWrapper(original_instance)
+
+        res1 = cached_instance.public_method2(8)
+        self.assertEqual(list(res1), list(range(5)))  # default length for unpacked iterators = 5
+        self.assertEqual(cached_instance.cache.read_counter, 0)
+
+        with self.assertRaises(ValueError) as cm:
+            # this call should trigger an exception because the requested iterator length is not
+            # presentin the cache
+            res1 = cached_instance.public_method2(8, cw_unpacked_iterator_limit=20)
+
+        # the previous call nevertheless counts as read access to the cache
+        self.assertEqual(cached_instance.cache.read_counter, 1)
+
+        # this is OK, since the cache is explicitly deactivated
+        res1 = cached_instance.public_method2(
+            8, cw_unpacked_iterator_limit=20, cw_override_cache=True
+        )
+        self.assertEqual(list(res1), list(range(8)))  # default of 5 length now overridden
+        self.assertEqual(cached_instance.cache.read_counter, 1)
+
+        res1 = cached_instance.public_method2(8)
+        self.assertEqual(cached_instance.cache.read_counter, 2)
+        self.assertEqual(list(res1), list(range(8)))  # default length of 5 still overridden
+
+        cached_instance2 = cw.CacheWrapper(original_instance, cw_unpacked_iterator_limit=30)
+
+        res1 = cached_instance2.public_method2(25)
+        self.assertEqual(list(res1), list(range(25)))  # default length sufficiently large
+        self.assertEqual(cached_instance2.cache.read_counter, 0)
+
+        res1 = cached_instance2.public_method2(25)
+        self.assertEqual(list(res1), list(range(25)))  # default length sufficiently large
+        self.assertEqual(cached_instance2.cache.read_counter, 1)

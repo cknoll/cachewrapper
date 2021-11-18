@@ -1,6 +1,7 @@
 import inspect
 import json
 import pickle
+import collections
 
 # useful for debugging during development
 try:
@@ -15,18 +16,16 @@ class CountingDict(dict):
     """
     Dict that counts how often a successfull read-access has occurred
     """
-    
+
     def __init__(self, *args, **kwargs):
         self.read_counter = 0
         return super().__init__(*args, **kwargs)
 
-    
     def __getitem__(self, __k):
-
         res = super().__getitem__(__k)
         self.read_counter += 1
         return res
-    
+
     def get(self, *args, **kwargs):
         res = super().get(*args, **kwargs)
         self.read_counter += 1
@@ -38,12 +37,15 @@ class CacheWrapper:
     Wrapper object
     """
 
-    def __init__(self, obj) -> None:
+    def __init__(self, obj, cw_unpacked_iterator_limit=5) -> None:
         """
         Create a wrapper
+        :param cw_unpacked_iterator_limit:  default value for how many items of an iterator
+                                            are unpacked in the cached result.
         """
 
         self.cache = CountingDict()
+        self.cw_unpacked_iterator_limit = cw_unpacked_iterator_limit
 
         self.wrapped_object = obj
         self.callables = get_all_callables(obj)
@@ -61,13 +63,58 @@ class CacheWrapper:
         # note: `name` and `obj` are specific to the follwing function-object
         def func(*args, **kwargs):
 
+            # pop some args which should not be passed to the original function
+
+            cw_unpacked_iterator_limit = kwargs.pop(
+                "cw_unpacked_iterator_limit", self.cw_unpacked_iterator_limit
+            )
+            cw_override_cache = kwargs.pop("cw_override_cache", False)
+
             # caching assumes that the arguments can be sensibly converted to json
             cache_key = (name, json.dumps(args, sort_keys=True), json.dumps(kwargs, sort_keys=True))
+
+            # ## Saving to the cache:
+            #
+            # iterators need some special handling because they are "empty" after reading
+            # thus it would be pointless to cache an iterator directly
+            # instead it is unpacked and stored as (wrapped) list.
+            # However to have the same output as the original function we have to return
+            # a new iterator.
+            #
+            #
+            # ## Reading from the cache:
+            #
+            # An IteratorWrapper has to be converted back to an iterator
+
             try:
-                return self.cache[cache_key]
+                if cw_override_cache:
+                    # act as if the value was not in the cache
+                    raise KeyError
+
+                # try to get the cached result
+                res = self.cache[cache_key]
+
+                # handle special case of Iterators
+                if isinstance(res, IteratorWrapper):
+                    if cw_unpacked_iterator_limit > res.max_size:
+                        msg = (
+                            f"The cached IteratorWrapper only has max_size of {res.max_size}.\n"
+                            f"You want a length of {cw_unpacked_iterator_limit}.\n"
+                            "You might want to use `cw_override_cache=True`."
+                        )
+                        raise ValueError(msg)
+                    res = res.get_iter()
+                return res
             except KeyError:
                 res = obj(*args, **kwargs)  # make the call
-                self.cache[cache_key] = res  # store result in the cache
+
+                if isinstance(res, collections.abc.Iterator):
+                    cache_res = IteratorWrapper(res, max_size=cw_unpacked_iterator_limit)
+                    res = cache_res.get_iter()
+                else:
+                    cache_res = res
+
+                self.cache[cache_key] = cache_res  # store the (wrapped) result in the cache
                 return res
 
         # generate a new docstring from the old one
@@ -83,6 +130,20 @@ class CacheWrapper:
         with open(path, "rb") as pfile:
             pdict = pickle.load(pfile)
         self.cache.update(pdict)
+
+
+class IteratorWrapper:
+    def __init__(self, iter_obj: collections.abc.Iterator, max_size):
+
+        self.max_size = max_size
+        self.unpacked_sequence = []
+        for i, item in enumerate(iter_obj):
+            if i >= max_size:
+                break
+            self.unpacked_sequence.append(item)
+
+    def get_iter(self):
+        return iter(self.unpacked_sequence)
 
 
 def get_all_callables(
