@@ -1,7 +1,12 @@
 import inspect
-from ipydex import IPS, activate_ips_on_exception
+import json
 
-activate_ips_on_exception()
+# useful for debugging during development
+try:
+    from ipydex import IPS, activate_ips_on_exception
+    activate_ips_on_exception()
+except ImportError:
+    pass
 
 
 class CacheWrapper:
@@ -14,6 +19,8 @@ class CacheWrapper:
         Create a wrapper
         """
 
+        self.cache = {}
+
         self.wrapped_object = obj
         self.callables = get_all_callables(obj)
         self._create_wrapped_callables()
@@ -24,11 +31,19 @@ class CacheWrapper:
 
     def _cached_func_factory(self, name, obj):
         """
-        create a new callable obj and install it in the namespace of `self`
+        Create a new callable obj and install it in the namespace of `self`.
         """
 
         def func(*args, **kwargs):
-            return obj(*args, **kwargs)
+
+            # caching assumes that the arguments can be sensibly converted to json
+            cache_key = (name, json.dumps(args, sort_keys=True), json.dumps(kwargs, sort_keys=True))
+            try:
+                return self.cache[cache_key]
+            except KeyError:
+                res = obj(*args, **kwargs)  # make the call
+                self.cache[cache_key] = res  # store result in the cache
+                return res
 
         func.__doc__ = f"{obj}wrapped callable '{name}':\n\n {obj.__doc__}"
         assert getattr(self, name, None) is None
