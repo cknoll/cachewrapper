@@ -37,19 +37,45 @@ class CacheWrapper:
     Wrapper object
     """
 
-    def __init__(self, obj, cw_unpacked_iterator_limit=5) -> None:
+    def __init__(
+        self, obj, cw_unpacked_iterator_limit=5, share_cache_with: "CacheWrapper" = None
+    ) -> None:
         """
         Create a wrapper
         :param cw_unpacked_iterator_limit:  default value for how many items of an iterator
                                             are unpacked in the cached result.
         """
 
-        self.cache = CountingDict()
+        if share_cache_with is None:
+            self.cache = CountingDict()
+            self.cache_sharing_objects = set([self])
+        else:
+            assert isinstance(share_cache_with, CacheWrapper), f"Unexpected Type:{type(share_cache_with)}"
+            self.cache = share_cache_with.cache
+            self.cache_sharing_objects = set([self]).union(share_cache_with.cache_sharing_objects)
+            share_cache_with.cache_sharing_objects.add(self)
+
         self.cw_unpacked_iterator_limit = cw_unpacked_iterator_limit
 
         self.wrapped_object = obj
         self.callables = get_all_callables(obj)
+        self._prevent_name_clashes()
         self._create_wrapped_callables()
+
+    def _prevent_name_clashes(self):
+        my_callables = set(self.callables.keys())
+
+        other_callables = set()
+        for other_obj in self.cache_sharing_objects:
+            if other_obj is self:
+                continue
+            else:
+                other_callables.update(other_obj.callables.keys())
+
+        duplicate_names = my_callables.intersection(other_callables)
+        if len(duplicate_names) > 0:
+            msg = f"There are the following duplicate names:\n{duplicate_names}"
+            raise ValueError(msg)
 
     def _create_wrapped_callables(self):
         for name, obj in self.callables.items():

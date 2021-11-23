@@ -209,3 +209,43 @@ class TestCore(unittest.TestCase):
         res1 = cached_instance2.public_method2(25)
         self.assertEqual(list(res1), list(range(25)))  # default length sufficiently large
         self.assertEqual(cached_instance2.cache.read_counter, 1)
+
+    def test_caching_multiple_objects1(self):
+        class DummyClass2:
+            def __init__(self) -> None:
+                self.call_counter = 0
+
+            def dc2_public_method1(self, arg1, arg2):
+                """
+                docstring of public_method1
+                """
+                self.call_counter += 1
+
+        original_instance1 = DummyClass()
+        cached_instance1 = cw.CacheWrapper(original_instance1)
+
+        original_instance2 = DummyClass2()
+        cached_instance2 = cw.CacheWrapper(original_instance2, share_cache_with=cached_instance1)
+
+        self.assertEqual(len(cached_instance1.cache), 0)
+        self.assertEqual(len(cached_instance2.cache), 0)
+
+        cached_instance1.public_method1(1, 2)
+        self.assertEqual(len(cached_instance1.cache), 1)
+        self.assertEqual(len(cached_instance2.cache), 1)
+
+        cached_instance2.dc2_public_method1(1, 2)
+        self.assertEqual(len(cached_instance1.cache), 2)
+        self.assertEqual(len(cached_instance2.cache), 2)
+
+        cached_instance2.dc2_public_method1(1, 2)
+        self.assertEqual(len(cached_instance1.cache), 2)
+        self.assertEqual(len(cached_instance2.cache), 2)
+
+        original_instance3 = DummyClass2()
+
+        with self.assertRaises(ValueError) as cm:
+            # this call should trigger an exception because there are duplicated names
+            cached_instance3 = cw.CacheWrapper(
+                original_instance3, share_cache_with=cached_instance1
+            )
