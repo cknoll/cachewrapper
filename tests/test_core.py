@@ -137,6 +137,30 @@ class TestCore(unittest.TestCase):
         self.assertEqual(res1, res2)
         self.assertEqual(res2, res3)
 
+    def test_pop_last_key(self):
+
+        ##!!
+
+        original_instance = DummyClass()
+        cached_instance = cw.CacheWrapper(original_instance)
+
+        self.assertEqual(len(cached_instance.cache), 0)
+
+        res1 = cached_instance.public_method1(10, 5)  # -> new call
+
+        self.assertEqual(len(cached_instance.cache), 1)
+
+        res1 = cached_instance.public_method1(10, 5)  # -> new call
+        res1 = cached_instance.public_method1(10, 5)  # -> new call
+        self.assertEqual(original_instance.call_counter, 1)
+
+        res2 = cached_instance._remove_last_key()
+        self.assertEqual(res1, res2)
+        self.assertEqual(len(cached_instance.cache), 0)
+
+        res3 = cached_instance.public_method1(10, 5)  # -> new call
+        self.assertEqual(original_instance.call_counter, 2)
+
     def test_caching_with_save_and_load(self):
 
         original_instance = DummyClass()

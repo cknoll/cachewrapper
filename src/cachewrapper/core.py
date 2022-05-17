@@ -61,6 +61,23 @@ class CacheWrapper:
         self.callables = get_all_callables(obj)
         self._prevent_name_clashes()
         self._create_wrapped_callables()
+        self._last_used_key = None
+
+    def _remove_last_key(self):
+        """
+        Removes the last used key from the cache. This is useful if the call retrieved an error
+        (e.g. rate-limit) instead of the desired result.
+
+        :return:    cached result
+        """
+
+        assert self._last_used_key is not None
+        res = self.cache.pop(self._last_used_key)
+
+        return res
+
+
+
 
     def _prevent_name_clashes(self):
         my_callables = set(self.callables.keys())
@@ -141,6 +158,7 @@ class CacheWrapper:
                     cache_res = res
 
                 self.cache[cache_key] = cache_res  # store the (wrapped) result in the cache
+                self._last_used_key = cache_key
                 return res
 
         # generate a new docstring from the old one
