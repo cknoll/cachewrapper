@@ -20,8 +20,7 @@ Currently this package is an early prototype, mainly for personal use.
 
 This is extracted from a real usecase (and not directly runable due to abridgement).
 
-```
-
+```python
 import os
 from tqdm import tqdm
 import cachewrapper as cw
