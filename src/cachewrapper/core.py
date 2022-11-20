@@ -5,7 +5,7 @@ import collections
 
 # useful for debugging during development
 try:
-    from ipydex import IPS, activate_ips_on_exception
+    from ipydex import IPS, activate_ips_on_exception  # noqa
 
     activate_ips_on_exception()
 except ImportError:
@@ -63,6 +63,15 @@ class CacheWrapper:
         self._create_wrapped_callables()
         self._last_used_key = None
 
+    def __call__(self, *args, **kwargs):
+
+        call_func = getattr(self, "_real_call__", None)
+        if call_func is None:
+            msg = f"{self} is not callable because the wrapped object was not callable."
+            raise TypeError(msg)
+
+        return call_func(*args, **kwargs)
+
     def _remove_last_key(self):
         """
         Removes the last used key from the cache. This is useful if the call retrieved an error
@@ -75,9 +84,6 @@ class CacheWrapper:
         res = self.cache.pop(self._last_used_key)
 
         return res
-
-
-
 
     def _prevent_name_clashes(self):
         my_callables = set(self.callables.keys())
@@ -206,5 +212,8 @@ def get_all_callables(
         and (not name.startswith("_") or name in include_private)
         and name not in exclude_names
     )
+
+    if callable(obj):
+        callables.update(_real_call__=obj)
 
     return callables
