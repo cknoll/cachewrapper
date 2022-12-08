@@ -214,6 +214,18 @@ def get_all_callables(
     )
 
     if callable(obj):
-        callables.update(_real_call__=obj)
+        if isinstance(obj, CacheWrapper):
+            if callable(obj.wrapped_object):
+                # all CacheWrappe-objects have a __call__ method
+                # however, we only consider those as callable for which the original object was also callable
+                # (the other case  deliberately results in a TypeError anyway)
+                cond = True
+            else:
+                cond = False
+        else:
+            cond = True
+
+        if cond:
+            callables.update(_real_call__=obj)
 
     return callables
