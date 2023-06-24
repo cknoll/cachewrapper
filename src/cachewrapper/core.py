@@ -119,8 +119,8 @@ class CacheWrapper:
             )
             cw_override_cache = kwargs.pop("cw_override_cache", False)
 
-            # caching assumes that the arguments can be sensibly converted to json
-            cache_key = (name, json.dumps(args, sort_keys=True), json.dumps(kwargs, sort_keys=True))
+            # caching requires that arguments can be hashed -> convert the to str
+            cache_key = (name, args_to_key(args), args_to_key(kwargs))
 
             # ## Saving to the cache:
             #
@@ -180,6 +180,21 @@ class CacheWrapper:
         with open(path, "rb") as pfile:
             pdict = pickle.load(pfile)
         self.cache.update(pdict)
+
+
+def args_to_key(obj):
+    """
+    Convert any object which can be passed to a cached function to a string representation (to identify its reoccurence)
+    """
+
+    try:
+        # this is preferred but does not always work
+        res = json.dumps(obj, sort_keys=True)
+    except TypeError:
+        # this might be ambiguos
+        res = str(obj)
+
+    return res
 
 
 class IteratorWrapper:
