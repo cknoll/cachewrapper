@@ -14,7 +14,7 @@ except ImportError:
 
 class CountingDict(dict):
     """
-    Dict that counts how often a successfull read-access has occurred
+    Dict that counts how often a successful read-access has occurred
     """
 
     def __init__(self, *args, **kwargs):
@@ -112,7 +112,7 @@ class CacheWrapper:
         Create a new callable obj and install it in the namespace of `self`.
         """
 
-        # note: `name` and `obj` are specific to the follwing function-object
+        # note: `name` and `obj` are specific to the following function-object
         def func(*args, **kwargs):
 
             # pop some args which should not be passed to the original function
@@ -176,25 +176,26 @@ class CacheWrapper:
         setattr(self, name, func)
 
     def save_cache(self, path: str):
-        with open(path, "wb") as dumpfile:
-            pickle.dump(self.cache, dumpfile)
+        with open(path, "wb") as fp:
+            pickle.dump(self.cache, fp)
 
     def load_cache(self, path: str):
-        with open(path, "rb") as pfile:
-            pdict = pickle.load(pfile)
+        with open(path, "rb") as fp:
+            pdict = pickle.load(fp)
         self.cache.update(pdict)
 
 
 def args_to_key(obj):
     """
-    Convert any object which can be passed to a cached function to a string representation (to identify its reoccurence)
+    Convert any object which can be passed to a cached function to a string representation
+    (to identify its reoccurrence)
     """
 
     try:
         # this is preferred but does not always work
         res = json.dumps(obj, sort_keys=True)
     except TypeError:
-        # this might be ambiguos
+        # this might be ambiguous
         res = str(obj)
 
     return res
@@ -234,7 +235,7 @@ def get_all_callables(
     if callable(obj):
         if isinstance(obj, CacheWrapper):
             if callable(obj.wrapped_object):
-                # all CacheWrappe-objects have a __call__ method
+                # all CacheWrapper-objects have a __call__ method
                 # however, we only consider those as callable for which the original object was also callable
                 # (the other case  deliberately results in a TypeError anyway)
                 cond = True

@@ -234,7 +234,7 @@ class TestCore(unittest.TestCase):
 
         with self.assertRaises(ValueError) as cm:
             # this call should trigger an exception because the requested iterator length is not
-            # presentin the cache
+            # present in the cache
             res1 = cached_instance.public_method2(8, cw_unpacked_iterator_limit=20)
 
         # the previous call nevertheless counts as read access to the cache
