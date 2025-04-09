@@ -18,40 +18,40 @@ Currently this package is an early prototype, mainly for personal use.
 ## Usage Example
 
 
-This is extracted from a real usecase (and not directly runable due to abridgement).
+This is extracted from a real use case (translating a math ontology which originally contained mainly Russian labels)
+and not directly executable due to abridgement.
 
 ```python
 import os
 from tqdm import tqdm
 import cachewrapper as cw
 
+
+# suppose data contains strings which should be translated into english
+from . import data
+
 # rate limited API module
 from translate import Translator
 
 cache_path = "translate_cache.pcl"
-cached_translator = cw.CacheWrapper(original_translator)
+cached_translator = cw.CacheWrapper(Translator)
 
 if os.path.isfile(cache_path):
     cached_translator.load_cache(cache_path)
 
-# not shown in this example
-untranslated_classes = do_some_ontology_stuff()
-
 res_list = []
 
-for c in tqdm(untranslated_classes[:]):
-    original = c.label.ru[0]
-    translation = cached_translator.translate(original)
+for original_label in tqdm(data.untranslated_labels):
+    translation = cached_translator.translate(original_label)
 
     if "MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY" in translation:
+        # we ran into the rate-limit -> we do not want to save this result
         cached_translator._remove_last_key()
         break
 
     record = {
-        c.name: {
-            "ru": f"{original}",
-            "en": f"{translation}",
-        }
+        "ru": f"{original_label}",
+        "en": f"{translation}",
      }
 
     res_list.append(record)
