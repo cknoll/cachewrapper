@@ -60,12 +60,39 @@ class TestCore(unittest.TestCase):
     def setUp(self):
         pass
 
+
     def test_CW_get_all_functions_and_methods(self):
 
         instance = DummyClass()
         cached_instance = cw.CacheWrapper(instance)
 
         self.assertEqual(len(cached_instance.callables), 4)
+
+
+    def test_20_caching_of_ordinary_function(self):
+
+        func1_call_counter = 0
+        def func1(arg1, arg2):
+            """
+            This is the original docstring
+            """
+            nonlocal func1_call_counter
+            func1_call_counter += 1
+            return func1_call_counter
+
+        cached_func1 = cw.CacheWrapper(func1)
+
+        cached_func1(10, 20)
+        self.assertEqual(func1_call_counter, 1)
+        cached_func1(10, 20)
+        self.assertEqual(func1_call_counter, 1)
+
+        cached_func1(0, 20)
+        self.assertEqual(func1_call_counter, 2)
+
+
+        self.assertIn(func1.__doc__, cached_func1.__doc__)
+
 
     def test_caching1(self):
 

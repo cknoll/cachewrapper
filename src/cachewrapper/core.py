@@ -63,6 +63,9 @@ class CacheWrapper:
         self._create_wrapped_callables()
         self._last_used_key = None
 
+        if callable(obj):
+            self.__doc__ = f"Wrapped callable object:\n\n {obj.__doc__}"
+
     def __call__(self, *args, **kwargs):
 
         call_func = getattr(self, "_real_call__", None)
