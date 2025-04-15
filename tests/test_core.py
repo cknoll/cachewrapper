@@ -82,13 +82,18 @@ class TestCore(unittest.TestCase):
 
         cached_func1 = cw.CacheWrapper(func1)
 
+        self.assertIsNone(cached_func1._last_cache_status)
+
         cached_func1(10, 20)
         self.assertEqual(func1_call_counter, 1)
+        self.assertFalse(cached_func1._last_cache_status)
         cached_func1(10, 20)
         self.assertEqual(func1_call_counter, 1)
+        self.assertTrue(cached_func1._last_cache_status)
 
         cached_func1(0, 20)
         self.assertEqual(func1_call_counter, 2)
+        self.assertFalse(cached_func1._last_cache_status)
 
 
         self.assertIn(func1.__doc__, cached_func1.__doc__)

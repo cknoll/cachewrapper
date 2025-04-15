@@ -63,6 +63,9 @@ class CacheWrapper:
         self._create_wrapped_callables()
         self._last_used_key = None
 
+        # True if the last call was a cached call, False if not
+        self._last_cache_status = None
+
         if callable(obj):
             self.__doc__ = f"Wrapped callable object:\n\n {obj.__doc__}"
 
@@ -156,6 +159,8 @@ class CacheWrapper:
                         )
                         raise ValueError(msg)
                     res = res.get_iter()
+
+                self._last_cache_status = True
                 return res
             except KeyError:
                 res = obj(*args, **kwargs)  # make the call
@@ -168,6 +173,7 @@ class CacheWrapper:
 
                 self.cache[cache_key] = cache_res  # store the (wrapped) result in the cache
                 self._last_used_key = cache_key
+                self._last_cache_status = False
                 return res
 
         # generate a new docstring from the old one
