@@ -59,3 +59,10 @@ for original_label in tqdm(data.untranslated_labels):
 cached_translator.save_cache(cache_path)
 
 ```
+
+
+There are more features implemented but not yet properly documented:
+
+- unpacking of returned iterators (up to a maximum size)
+- `_last_cache_status` to check if the last call could retrieve a result from the cache
+    - helpful to decide whether to call `time.sleep(3)` to prevent rate limiting
