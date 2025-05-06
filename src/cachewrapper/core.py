@@ -66,6 +66,9 @@ class CacheWrapper:
         # True if the last call was a cached call, False if not
         self._last_cache_status = None
 
+        # initialize with True to allow saving even with no result
+        self._cache_contains_unsaved_data = True
+
         if callable(obj):
             self.__doc__ = f"Wrapped callable object:\n\n {obj.__doc__}"
 
@@ -163,7 +166,8 @@ class CacheWrapper:
                 self._last_cache_status = True
                 return res
             except KeyError:
-                res = obj(*args, **kwargs)  # make the call
+                res = obj(*args, **kwargs)  # make the call to the original callable object
+                self._cache_contains_unsaved_data = True
 
                 if isinstance(res, collections.abc.Iterator):
                     cache_res = IteratorWrapper(res, max_size=cw_unpacked_iterator_limit)
@@ -181,14 +185,23 @@ class CacheWrapper:
         assert getattr(self, name, None) is None
         setattr(self, name, func)
 
-    def save_cache(self, path: str):
+    def save_cache(self, path: str, only_if_changed: bool = False):
+
+        if only_if_changed and (not self._cache_contains_unsaved_data):
+            # we do not need to save the cache again
+            return
         with open(path, "wb") as fp:
             pickle.dump(self.cache, fp)
+
+        # we just saved the cache -> obviously no unsaved data left
+        self._cache_contains_unsaved_data = False
 
     def load_cache(self, path: str):
         with open(path, "rb") as fp:
             pdict = pickle.load(fp)
         self.cache.update(pdict)
+
+        self._cache_contains_unsaved_data = False
 
 
 def args_to_key(obj):

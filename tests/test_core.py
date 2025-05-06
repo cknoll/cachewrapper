@@ -220,7 +220,9 @@ class TestCore(unittest.TestCase):
         cached_instance.cache.clear()
 
         cached_instance.load_cache(cache_path)
+        self.assertFalse(cached_instance._cache_contains_unsaved_data)
         res4 = cached_instance.public_method1(arg1, arg2)  # -> no new call
+        self.assertFalse(cached_instance._cache_contains_unsaved_data)
         self.assertEqual(original_instance.call_counter, 3)
 
         self.assertEqual(res1, res2)
@@ -228,6 +230,22 @@ class TestCore(unittest.TestCase):
         self.assertEqual(res1, res4)
 
         os.remove(cache_path)
+        self.assertFalse(cached_instance._cache_contains_unsaved_data)
+
+        cached_instance.save_cache(cache_path, only_if_changed=True)
+        self.assertFalse(os.path.exists(cache_path))
+
+        # now change one arg and call again
+        arg2["b"] = 100
+        res5 = cached_instance.public_method1(arg1, arg2)  # -> new call
+        self.assertTrue(cached_instance._cache_contains_unsaved_data)
+        self.assertEqual(original_instance.call_counter, 4)
+        cached_instance.save_cache(cache_path, only_if_changed=True)
+        self.assertTrue(os.path.exists(cache_path))
+
+        # final cleanup
+        os.remove(cache_path)
+
 
     def test_caching_iterators(self):
         original_instance = DummyClass()
